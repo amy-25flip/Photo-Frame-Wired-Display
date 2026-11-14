@@ -27,6 +27,15 @@ It can only work if all of these are true; the first two are cheap to check:
 
 Failure in 3 or 4 is harmless (the frame just shows nothing useful); a power cycle restores it. The default mode never writes flash.
 
+## Trying a frame that is not the verified unit
+
+1. Compare the USB IDs (normal `10d6:1101`, recovery `10d6:10d6`) and the board marking with the table above.
+2. Use the **manual** entry the first time: hold MENU, plug in the mini-USB cable, keep holding for about 3 s. This only uses the chip's mask ROM.
+3. Check the chip identity by hand before running anything of ours: `adfu-tool info` must print `ADFUD`, PID `0x0950`, version `0x46` (see above). If it does not, stop and open an issue.
+4. Only after the manual route works, try the automatic switch (plug in without MENU). It sends one undocumented vendor SCSI command (`CB 21 …`) to the frame's normal firmware;
+   other firmware versions could react differently.
+5. Never use the optional flash tools on a frame whose firmware has not been verified identical to the verified unit (the tools refuse to run; do not try to get around that).
+
 ## Reporting a different frame
 
 Open an issue with: the frame's brand/model, the board marking, USB hardware IDs in normal and MENU-held mode, the `adfu-tool info` output,

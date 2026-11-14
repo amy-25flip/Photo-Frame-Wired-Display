@@ -8,11 +8,19 @@ into the frame's RAM over that mode, streams your desktop to it over the mini-US
 
 > **Status: v0.1, works on exactly one verified unit** (see [docs/HARDWARE.md](docs/HARDWARE.md)). If your frame has the same USB IDs it *may* work;
 > please report what you find. Nothing in the default setup writes to the frame's flash: unplugging it restores stock behaviour.
+>
+> **Not sure your frame is the same?** Follow [the checklist for other frames](docs/HARDWARE.md#trying-a-frame-that-is-not-the-verified-unit) and plug it in **while holding MENU** the first time:
+> that uses only the chip's built-in recovery mode. The automatic mode switch (no button needed) sends one undocumented vendor command to the frame's normal firmware,
+> which is known to be fine on the verified unit but untested on others.
+> The install itself was tested on a clean Windows 11 VM; the plug-in step is verified only on the one real frame.
 
 ## What you get
 
 - Plug the frame in → it appears as an additional Windows display (1024×600, 30 Hz) after ~10 s; drag windows onto it. Unplug → it disappears.
-- A boot/loading picture shown from the first ~2 s until the desktop appears (default artwork included; you can use your own).
+- A boot/loading picture shown from the first ~2 s until the desktop appears (default artwork included; you can use your own):
+
+  ![Default loading picture as shown on the frame](v100display/assets/loading-panel-preview.png)
+
 - Native 1024×600, text stays sharp; colour is dithered RGB444 (4096 colours) decoded to the panel's RGB565.
 - Everything runs from the frame's RAM. The frame's flash is untouched unless you opt in to the [guarded flash tools](flash/README.md).
 
@@ -52,6 +60,7 @@ is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Optional tuning (backlight brightness, CPU clock) lives in `v100display/settings.json`, see [docs/SETUP.md](docs/SETUP.md#5-optional-tuning-settingsjson).
 
+Windows will ask once whether to install the display driver from *SignPath Foundation*: choose Install. Run `wsl --install` in a normal interactive window.
 Details and troubleshooting: [docs/SETUP.md](docs/SETUP.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ## Use your own boot picture
