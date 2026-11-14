@@ -1,0 +1,4 @@
+# Windows Python (the watcher, screen capture, virtual display)
+numpy>=1.26
+opencv-python>=4.9
+mss>=9.0

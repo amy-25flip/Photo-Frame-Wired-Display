@@ -1,0 +1,18 @@
+# Never commit vendor firmware, ROM or flash dumps (copyrighted), or your personal backups
+*.bin
+!v100display/stage1-clean.bin
+flash-backup*
+*.flash
+*.rom
+backups/
+# logs and caches
+*.log
+__pycache__/
+*.pyc
+.venv/
+venv/
+# local state written at runtime
+v100display/assets/flash_picture.jpg
+v100display/assets/.from_flash
+v100display/assets/default/
+flash/_prepared.jpg

@@ -1,0 +1,4 @@
+numpy>=1.26
+opencv-python-headless>=4.9
+unicorn>=2.0
+pytest>=8.0

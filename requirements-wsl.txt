@@ -1,0 +1,7 @@
+# Python inside the WSL2 distribution that owns the frame's USB device
+pyusb>=1.2
+numpy>=1.26
+# ADFU loader (GPL-2.0-or-later): pip install git+https://github.com/BlackLikeaCat/actions-adfu-tool
+# Tests / simulators only:
+unicorn>=2.0
+capstone>=5.0
