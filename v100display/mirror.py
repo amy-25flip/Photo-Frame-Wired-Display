@@ -103,6 +103,12 @@ def main():
                 mon = sct.monitors[args.monitor]
             print("capturing monitor %d: %dx%d" % (args.monitor, mon["width"], mon["height"]), flush=True)
             interval = 1.0 / args.fps
+            try:                                          # 1 ms Windows timer resolution: accurate frame pacing
+                import ctypes
+                ctypes.windll.winmm.timeBeginPeriod(1)
+            except Exception:
+                pass
+            next_t = time.perf_counter()
             while not stop.is_set():
                 t0 = time.perf_counter()
                 shot = np.asarray(sct.grab(mon))[:, :, :3]       # BGRA -> BGR view
@@ -123,9 +129,15 @@ def main():
                     latest["img"], latest["grab_ms"] = shot, (time.perf_counter() - t0) * 1000
                     latest["seq"] += 1
                     cv.notify()
-                rest = interval - (time.perf_counter() - t0)
-                if rest > 0:
-                    time.sleep(rest)
+                next_t += interval                          # fixed schedule (no drift): frame n is due at start + n/fps
+                now = time.perf_counter()
+                if next_t < now - interval:                 # more than a frame late (e.g. system hiccup): resync, never burst
+                    next_t = now
+                rest = next_t - now
+                if rest > 0.0015:
+                    time.sleep(rest - 0.001)
+                while time.perf_counter() < next_t:         # spin the last ~1 ms for an exact tick
+                    pass
 
     threading.Thread(target=grabber, daemon=True).start()
 

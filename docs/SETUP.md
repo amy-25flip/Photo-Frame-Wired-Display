@@ -48,6 +48,25 @@ python v100display\set_boot_image.py my_picture.jpg --fit contain    # --fit cov
 
 Takes effect at the next plug-in.
 
+## 5. Optional tuning (`settings.json`)
+
+Copy `v100display\settings.example.json` to `v100display\settings.json` and edit; the values are applied at every plug-in, right after the frame's stage-1 program is up:
+
+```json
+{ "brightness": 90, "cpu_mhz": 324 }
+```
+
+| key | range | effect |
+|---|---|---|
+| `brightness` | 1–100 (percent of the default backlight duty) | lower = less current and heat. **If the image flickers when the frame is on a USB hub, lower this** (see below) |
+| `cpu_mhz` | 240–360 (stock 360) | lower = cooler. Measured on a direct USB port with the 12-bit decoder: 360 MHz = 33.3 fps, 336 = 31.9, **324 = 31.0**, 312 = 30.0, 300 = 29.4. The mirror caps at 30 fps, so 324 is the lowest clock with headroom |
+
+Each value is verified by readback; the clock is only changed when the PLL is at its stock value and is never raised above it. Remove a key to use the stock value.
+
+**Power note.** The frame runs from the USB cable. A bus-powered hub, a long or thin cable, or a weak port can sag under the backlight's load and make the picture
+flicker or the USB link drop (I/O errors at startup). Best: a direct motherboard port or a *powered* hub; otherwise lower `brightness` (70–90 worked on a cheap bus-powered USB 2.0 hub).
+The chip has no temperature sensor that software can read; if the back gets very hot (above ~70 °C by an infrared thermometer), lower `brightness`/`cpu_mhz` or add a small stick-on heatsink to the main chip.
+
 ## Uninstall
 
 `windows\uninstall.ps1` (add `-RemoveDriver` to remove the virtual display device and driver package). It never touches the frame.

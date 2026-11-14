@@ -11,6 +11,8 @@ Always start with `v100display\frame_watcher.log` (session), `sender.log` / `sen
 | Loading picture shows, desktop never appears | the decoder stage failed; `sender.err.log` says where. Replug (the stub in RAM is never reloaded over a running stub on purpose) |
 | "Frame did not appear in WSL" right after plugging in | USB enumeration was slow; the watcher stops that attempt. Unplug, wait 5 s, plug in again |
 | Image tears or stutters | the capture side or the USB link is saturated; close heavy USB traffic on the same controller. Static screens send nothing; full-motion video needs ~28 MB/s |
+| Backlight flicker / "brightness shimmer", USB I/O errors at startup, only on some ports | the frame is powered through the USB cable and the port or hub sags under the backlight load. Use a direct motherboard port or a powered hub, or lower `brightness` in `settings.json` (see [SETUP.md](SETUP.md#5-optional-tuning-settingsjson)) |
+| Occasional stutter below 30 fps | a late frame from the PC was dropped. The sender keeps a 3-frame queue (`--queue`) and the mirror captures on a drift-free 30 fps schedule; check `sender.log` for `queue drops`. At very low `cpu_mhz` the decoder cannot keep 30 fps (300 MHz and below = 29.4) |
 | Colour banding | the format is 12 bit (4096 colours) with ordered dither. `mirror.py --nodither` trades dither noise for banding |
 | "Multiple V100 frames connected" | the watcher refuses ambiguous USB ownership: connect one frame |
 | Windows shows a drive for the frame for a moment | normal: that is the frame in mass-storage mode before the switch |

@@ -67,6 +67,19 @@ past one packet (hangs the controller), a second DMA channel (channel 4 hung the
 `DE_ENABLE` 0xB02F0000, `DE_PLANE0_CFG` +0x40 (0x40000 normal; 0xC0000 = hardware 2× zoom, used by the old low-resolution "turbo" mode), `DE_PLANE0_BA` +0x50
 (flip), `DE_PLANE0_STRD` +0x70. Register map credit: [SiarheiVolkau/actions-hacking](https://github.com/SiarheiVolkau/actions-hacking).
 
+## Frame pacing
+
+The 12-bit decoder can display ~31 frames/s at 324 MHz (33 at stock), only slightly more than the 30 fps the capture runs at, so the host must not waste the margin:
+`mirror.py` captures on a fixed, drift-free schedule (frame *n* due at *start + n/fps*, 1 ms Windows timer, spin on the last millisecond) and `frame_sender.py --c444`
+keeps a short queue (`--queue N`, default 3) instead of a single "latest" slot. Measured with a feeder at exactly 30 fps plus a 45 ms host hiccup twice a second:
+single slot = 29.5 updates/s (one dropped frame every 2 s); queue of 3 = 30.0 updates/s, 0 drops. Each sender log line reports `queue drops` and the USB write time
+(~32 ms per frame at 324 MHz against the 33.3 ms budget).
+
+## Device settings
+
+`v100display/device_settings.py` applies the optional `settings.json` (backlight duty via `PWM3_CTL` 0xB01C004C, CPU clock via the core PLL multiplier at 0xB0010100) through the stage-1
+command channel before the loading picture is shown. All values are verified by readback and bounded (never above the stock clock).
+
 ## Host side
 
 * `frame_watcher.py` – polls `usbipd state`, switches normal → ADFU (`win_enter_adfu.py`), attaches to WSL, runs the *clean* startup sequence

@@ -25,7 +25,7 @@ Frames arriving while a transfer runs are dropped (latest wins); diffs are alway
 
 usage: python3 frame_sender.py [--port 9100] [--mode 1] [--zoom | --auto] [--full]
 """
-import argparse, signal, socket, struct, sys, threading, time
+import argparse, collections, signal, socket, struct, sys, threading, time
 from pathlib import Path
 import numpy as np
 import usb.core
@@ -112,6 +112,29 @@ class Latest:
             return self.item, self.seq
 
 
+class Fifo:
+    """Short frame queue (c444 mode): absorbs host-side jitter so a late frame is not overwritten by the next one. depth 1 behaves like Latest."""
+    def __init__(self, depth=3):
+        self.cv = threading.Condition()
+        self.q = collections.deque()
+        self.depth = max(1, depth)
+        self.dropped = 0
+
+    def put(self, item):
+        with self.cv:
+            if len(self.q) >= self.depth:
+                self.q.popleft()
+                self.dropped += 1
+            self.q.append(item)
+            self.cv.notify()
+
+    def pop(self, timeout=1.0):
+        with self.cv:
+            if not self.q:
+                self.cv.wait(timeout)
+            return self.q.popleft() if self.q else None
+
+
 def recv_exact(conn, n):
     buf = bytearray(n)
     view, got = memoryview(buf), 0
@@ -160,13 +183,14 @@ def main():
     ap.add_argument("--c444", action="store_true", help="12-bit packed frames from mirror.py --c444, decoded by the stage-2 blob (needs the diag21 stub); ~29 fps at 1024x600")
     ap.add_argument('--fresh-loader',action='store_true',help='Stage 1 was just loaded in a separate ROM upload process')
     ap.add_argument('--loading-frame',type=Path,default=Path(__file__).parent/'assets'/'loading.c444')
+    ap.add_argument('--queue',type=int,default=3,help='c444: frames the sender may hold while the USB link is busy (1 = latest only, old behaviour)')
     args = ap.parse_args()
     if args.zoom and args.auto:
         sys.exit("--zoom and --auto are exclusive")
 
     dev = open_frame()
     fixed = (TURBO if args.zoom else SHARP)
-    box, stats = Latest(), {"rx": 0}
+    box, stats = (Fifo(args.queue) if args.c444 else Latest()), {"rx": 0}
     if args.c444:
         import c444
         fsize = c444.NPKT * PKT
@@ -297,22 +321,26 @@ def run_c444(dev, box, stats, stop, fresh=False, loading_frame=None):
         raise RuntimeError("Decoder did not acknowledge startup frame")
     print("DISPLAY_READY: packed decoder acknowledged loading picture", flush=True)
     last, seq, t_rep = None, 0, time.time()
-    c = {"upd": 0, "skip": 0, "rows": 0, "bands": 0, "bytes": 0, "sw": 0}
+    c = {"upd": 0, "skip": 0, "rows": 0, "bands": 0, "bytes": 0, "sw": 0, "wsum": 0.0, "wmax": 0.0}
+    c["_box"] = box
     n_since_drain = 0
     try:
         while not stop["now"]:
-            item, new_seq = box.get(seq)
-            if new_seq == seq or item is None:
+            item = box.pop(1.0)
+            if item is None:
                 continue
-            seq = new_seq
             buf = item[1]
             if last is not None and buf == last:
                 c["skip"] += 1
                 t_rep = _maybe_report(c, t_rep, stats)
                 continue
             data = hdr + bytes(buf)
+            tw = time.perf_counter()
             for off in range(0, len(data), 1 << 20):
                 dev.write(OUT_EP, data[off:off + (1 << 20)], timeout=10000)
+            wms = (time.perf_counter() - tw) * 1000
+            c["wsum"] += wms
+            c["wmax"] = max(c["wmax"], wms)
             if last is None:
                 if not read_ack(b'C4F1',timeout=5000):raise RuntimeError('First desktop frame was not acknowledged')
                 print('FIRST_DESKTOP_FRAME: acknowledged by frame',flush=True)
@@ -337,10 +365,16 @@ def _maybe_report(c, t_rep, stats):
     if now - t_rep >= 2.0:
         dt = now - t_rep
         upd = max(c["upd"], 1)
-        print("updates %.1f/s | unchanged skipped %.1f/s | avg %d rows in %.1f bands | USB %.1f MB/s | received %.1f fps | mode switches %d" % (
-            c["upd"] / dt, c["skip"] / dt, c["rows"] // upd, c["bands"] / upd, c["bytes"] / dt / 1e6, stats["rx"] / dt, c["sw"]), flush=True)
+        box = c.get("_box")
+        extra = ""
+        if box is not None and hasattr(box, "dropped"):
+            extra = " | queue drops %d | write avg %.1f max %.1f ms" % (box.dropped, c["wsum"] / upd, c["wmax"])
+            box.dropped = 0
+        print("updates %.1f/s | unchanged skipped %.1f/s | avg %d rows in %.1f bands | USB %.1f MB/s | received %.1f fps | mode switches %d%s" % (
+            c["upd"] / dt, c["skip"] / dt, c["rows"] // upd, c["bands"] / upd, c["bytes"] / dt / 1e6, stats["rx"] / dt, c["sw"], extra), flush=True)
         for k in c:
-            c[k] = 0
+            if k != "_box":
+                c[k] = 0
         stats["rx"] = 0
         return now
     return t_rep

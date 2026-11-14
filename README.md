@@ -37,6 +37,7 @@ is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start
 
+0. `git clone https://github.com/amy-25flip/Photo-Frame-Wired-Display.git` and open a terminal in the folder.
 1. Install prerequisites: `wsl --install`, `winget install --exact dorssel.usbipd-win`, Python for Windows.
 2. Download the VDD "Driver Only" release asset 25.7.23 and unzip it somewhere.
 3. In an **elevated** PowerShell:
@@ -48,6 +49,8 @@ is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
    python v100display\frame_watcher.py
    ```
 5. Plug the frame in. Do **not** hold MENU (holding MENU also works, it just skips the automatic mode switch).
+
+Optional tuning (backlight brightness, CPU clock) lives in `v100display/settings.json`, see [docs/SETUP.md](docs/SETUP.md#5-optional-tuning-settingsjson).
 
 Details and troubleshooting: [docs/SETUP.md](docs/SETUP.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
