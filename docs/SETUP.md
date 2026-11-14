@@ -12,7 +12,16 @@ Total time: about 15 minutes, two admin prompts. Everything is reversible with `
 | Virtual Display Driver 25.7.23 | download the **Driver Only** asset of <https://github.com/VirtualDrivers/Virtual-Display-Driver/releases/tag/25.7.23> and unzip it |
 
 The VDD package is signed (SignPath Foundation). `setup.ps1` refuses to install it unless `MttVDD.dll`, `MttVDD.inf` and `mttvdd.cat` match the pinned SHA-256 values
-of that release and carry a valid Authenticode signature. It does not disable driver signature enforcement and does not import certificates.
+of that release and `MttVDD.dll` and `mttvdd.cat` carry a valid Authenticode signature (an `.inf` has none of its own; Windows checks it against the signed catalog). It does not disable
+driver signature enforcement and does not import certificates.
+
+Notes from a test on a clean Windows 11 install:
+
+* Run `wsl --install` from a normal interactive PowerShell window, not from a remote/SSH session: the Windows stub only completes there. Reboot afterwards, then `wsl --install -d Ubuntu`
+  (or let the first `wsl --install` do both). Any recent Ubuntu works; the test used Ubuntu 26.04.
+* During step 5 Windows shows **"Would you like to install this device software?"** for *MikeTheTech Display adapters*, publisher *SignPath Foundation*. Choose **Install**.
+  The prompt appears on your desktop, so run `setup.ps1` from a terminal you are looking at (not as a hidden or scheduled job), otherwise it fails with error `0xE0000242`.
+* Running `setup.ps1` a second time is safe; it skips the usbipd policy that already exists.
 
 ## 2. One-time setup (elevated PowerShell)
 

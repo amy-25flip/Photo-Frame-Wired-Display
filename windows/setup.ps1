@@ -43,8 +43,13 @@ try {
     Write-Host $wslVer
 
     Write-Host "== 2/5 usbipd policy for the frame (ADFU 10d6:10d6)"
-    usbipd policy add --effect Allow --operation AutoBind --hardware-id 10d6:10d6
-    if ($LASTEXITCODE -ne 0) { Write-Host "(policy may already exist)" }
+    $existingPolicy = (usbipd policy list | Out-String) -match "10d6:10d6"
+    if ($existingPolicy) {
+        Write-Host "(policy for 10d6:10d6 already exists)"
+    } else {
+        usbipd policy add --effect Allow --operation AutoBind --hardware-id 10d6:10d6
+        if ($LASTEXITCODE -ne 0) { throw "Could not add the usbipd policy for 10d6:10d6." }
+    }
     usbipd policy list
 
     Write-Host "== 3/5 Python environment inside WSL ($Distro)"
@@ -60,8 +65,19 @@ python3 -m venv /opt/v100display/venv
 /opt/v100display/venv/bin/python -c 'import usb.core, numpy, adfu_tool; print("WSL environment OK")'
 "@
     $script = $script -replace "`r", ""
-    wsl.exe -d $Distro -u root -e bash -lc $script
-    if ($LASTEXITCODE -ne 0) { throw "WSL environment setup failed (see above)." }
+    # Passing a multi-line script containing quotes as an argument to wsl.exe breaks under Windows PowerShell 5.1,
+    # so write it to a temp file (LF endings, no BOM) and let bash run that file.
+    $tmpSh = Join-Path $env:TEMP "v100display-wsl-setup.sh"
+    [System.IO.File]::WriteAllText($tmpSh, $script, (New-Object System.Text.UTF8Encoding($false)))
+    $tmpDrive = $tmpSh.Substring(0, 1).ToLower()
+    $wslSh = "/mnt/$tmpDrive" + ($tmpSh.Substring(2) -replace "\\", "/")
+    try {
+        wsl.exe -d $Distro -u root -e bash $wslSh
+        $wslExit = $LASTEXITCODE
+    } finally {
+        Remove-Item $tmpSh -ErrorAction SilentlyContinue
+    }
+    if ($wslExit -ne 0) { throw "WSL environment setup failed (see above)." }
 
     Write-Host "== 4/5 Windows Python environment"
     $py = Get-Command python -ErrorAction SilentlyContinue
@@ -89,8 +105,11 @@ python3 -m venv /opt/v100display/venv
             if (-not (Test-Path $f)) { throw "$name missing in $DriverDir" }
             $h = (Get-FileHash -Algorithm SHA256 $f).Hash.ToLower()
             if ($h -ne $pins[$name]) { throw "$name does not match the pinned SHA-256 of release 25.7.23 ($h). Refusing to install." }
-            $sig = Get-AuthenticodeSignature $f
-            if ($sig.Status -ne "Valid") { throw "$name has no valid Authenticode signature ($($sig.Status))." }
+            # .inf files carry no Authenticode signature of their own: the pinned hash covers them and Windows checks them against the signed .cat at install time.
+            if ($name -ne "MttVDD.inf") {
+                $sig = Get-AuthenticodeSignature $f
+                if ($sig.Status -ne "Valid") { throw "$name has no valid Authenticode signature ($($sig.Status))." }
+            }
         }
         Copy-Item (Join-Path $PSScriptRoot "vdd_settings.xml") (Join-Path $DriverDir "vdd_settings.xml") -Force
         & "$venv\Scripts\python.exe" -u (Join-Path $PSScriptRoot "install_vdd.py") (Resolve-Path $DriverDir).Path

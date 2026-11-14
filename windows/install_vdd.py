@@ -27,7 +27,10 @@ def install(folder):
     with winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,r'SOFTWARE\MikeTheTech\VirtualDisplayDriver',0,winreg.KEY_SET_VALUE) as key:
         winreg.SetValueEx(key,'VDDPATH',0,winreg.REG_SZ,str(folder))
     existing=subprocess.run(['pnputil','/enum-devices','/deviceid',r'Root\MttVDD'],capture_output=True,text=True).stdout
-    if 'ROOT\\DISPLAY' in existing.upper(): raise RuntimeError('A VDD root device already exists; inspect it rather than creating a duplicate')
+    if 'ROOT\\DISPLAY' in existing.upper():
+        # Already installed (e.g. setup.ps1 run a second time): the settings path above is refreshed, nothing else to do.
+        print(json.dumps(dict(installed=True,already_present=True,reboot_required=False,settings=str(folder))),flush=True)
+        return
     api=c.WinDLL('setupapi',use_last_error=True)
     api.SetupDiCreateDeviceInfoList.argtypes=[c.POINTER(GUID),w.HWND]
     api.SetupDiCreateDeviceInfoList.restype=w.HANDLE
