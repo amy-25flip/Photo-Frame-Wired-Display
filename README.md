@@ -45,7 +45,7 @@ is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start
 
-0. `git clone https://github.com/amy-25flip/Photo-Frame-Wired-Display.git` and open a terminal in the folder.
+0. `git clone https://github.com/amy-25flip/FrameBreak.git` and open a terminal in the folder.
 1. Install prerequisites: `wsl --install`, `winget install --exact dorssel.usbipd-win`, Python for Windows.
 2. Download the VDD "Driver Only" release asset 25.7.23 and unzip it somewhere.
 3. In an **elevated** PowerShell:
